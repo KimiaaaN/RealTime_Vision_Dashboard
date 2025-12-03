@@ -223,7 +223,9 @@ Essential for debugging and performance optimization; displayed directly on the 
 Fully Responsive Frontend
 Built to scale from desktop → mobile with a flexible CSS grid layout and adaptive components.
 
+
 ## License
 
-This project is created for assignment purposes.
+© 2025.All rights reserved by Kimia Nahravanian.
 
+This project and its contents are the intellectual property of the author and may not be copied, modified, distributed, or used without explicit permission.
