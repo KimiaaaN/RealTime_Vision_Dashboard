@@ -1,0 +1,67 @@
+body {
+  font-family: Arial, sans-serif;
+  margin: 0;
+  padding: 0;
+  background: #f5f5f5;
+}
+
+.app {
+  max-width: 1000px;
+  margin: 20px auto;
+  padding: 10px;
+}
+
+.status {
+  font-size: 1.2rem;
+  margin-bottom: 10px;
+}
+
+.status .healthy {
+  color: green;
+  font-weight: bold;
+}
+
+.status .offline {
+  color: red;
+  font-weight: bold;
+}
+
+.metrics {
+  background: #fff;
+  padding: 10px;
+  margin-bottom: 20px;
+  border-radius: 6px;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+}
+
+.cards-container {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.card {
+  background: #fff;
+  padding: 10px;
+  border-radius: 6px;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+  width: 180px;
+}
+
+.card .thumb img {
+  width: 100%;
+  border-radius: 4px;
+}
+
+.card .info {
+  font-size: 0.9rem;
+  margin-top: 5px;
+}
+
+.chart {
+  background: #fff;
+  padding: 10px;
+  border-radius: 6px;
+  margin-bottom: 20px;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+}
