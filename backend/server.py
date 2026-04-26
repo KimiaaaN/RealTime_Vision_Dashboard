@@ -22,20 +22,14 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-<<<<<<< HEAD
 detection_manager: DetectionManager = None
 detection_task: asyncio.Task = None
-=======
-detection_manager = DetectionManager()
-
->>>>>>> 058ea6fbbc0b7667d8cb694607e26497fbe88b4d
 
 
 # Startup event: auto-start detection
 
 @app.on_event("startup")
 async def startup_event():
-<<<<<<< HEAD
     global detection_manager, detection_task          
     try:
         detection_manager = DetectionManager()       
@@ -43,10 +37,6 @@ async def startup_event():
         detection_task = asyncio.create_task(         
             detection_manager.run_detection_loop()
         )
-=======
-    try:
-        detection_manager.start_detection()
->>>>>>> 058ea6fbbc0b7667d8cb694607e26497fbe88b4d
         logger.info("Camera and detection auto-started on startup.")
     except Exception as e:
         logger.warning(f"Could not auto-start detection on startup: {e}")
@@ -65,13 +55,6 @@ async def root():
 
 @app.post("/detection/set-camera")
 async def set_camera(source_type: str = Body(...), camera_url: str = Body(None)):
-<<<<<<< HEAD
-=======
-    """
-    Configure camera. source_type: "webcam" or "ip_camera".
-    camera_url: optional URL for IP camera.
-    """
->>>>>>> 058ea6fbbc0b7667d8cb694607e26497fbe88b4d
     try:
         detection_manager.set_camera(source_type, camera_url)
         return {"message": "Camera configured", "camera_url": detection_manager.camera_url}
@@ -82,16 +65,8 @@ async def set_camera(source_type: str = Body(...), camera_url: str = Body(None))
 
 @app.post("/detection/start")
 async def start_detection():
-<<<<<<< HEAD
     try:
         await detection_manager.start_detection()   
-=======
-    """
-    Start camera + detection loop. Idempotent.
-    """
-    try:
-        detection_manager.start_detection()
->>>>>>> 058ea6fbbc0b7667d8cb694607e26497fbe88b4d
         return {"status": "success", "message": "Detection started"}
     except Exception as e:
         logger.exception("Error starting detection")
@@ -100,18 +75,9 @@ async def start_detection():
 
 @app.post("/detection/stop")
 async def stop_detection():
-<<<<<<< HEAD
     try:
         await detection_manager.stop_detection()      
         await detection_manager.stop_camera()         
-=======
-    """
-    Stop detection and camera gracefully.
-    """
-    try:
-        detection_manager.stop_detection()
-        detection_manager.stop_camera()
->>>>>>> 058ea6fbbc0b7667d8cb694607e26497fbe88b4d
         return {"status": "success", "message": "Detection stopped"}
     except Exception as e:
         logger.exception("Error stopping detection")
@@ -125,18 +91,11 @@ async def get_status():
 
 
 # Health, snapshot, and frame endpoints
-<<<<<<< HEAD
 
 @app.get("/health")
 async def health():
     try:
         return await detection_manager.get_health_status()    
-=======
-@app.get("/health")
-async def health():
-    try:
-        return detection_manager.get_health_status()
->>>>>>> 058ea6fbbc0b7667d8cb694607e26497fbe88b4d
     except Exception:
         logger.exception("Health check error")
         return JSONResponse({"status": "error"}, status_code=500)
@@ -144,17 +103,8 @@ async def health():
 
 @app.get("/snapshot")
 async def snapshot():
-<<<<<<< HEAD
     try:
         data = await detection_manager.get_snapshot_json()    
-=======
-    """
-    Returns the latest inference result in assignment-required format.
-    Format: { "timestamp": "...", "faces": [{ "bbox": [x1,y1,x2,y2], "emotion": "...", "age": int, "gender": "..." }] }
-    """
-    try:
-        data = detection_manager.get_snapshot_json()
->>>>>>> 058ea6fbbc0b7667d8cb694607e26497fbe88b4d
         if not data:
             return JSONResponse({"timestamp": "", "faces": []}, status_code=200)
         return data
@@ -166,11 +116,7 @@ async def snapshot():
 @app.get("/frame")
 async def frame():
     try:
-<<<<<<< HEAD
         data = await detection_manager.get_live_frame_json()  
-=======
-        data = detection_manager.get_live_frame_json()
->>>>>>> 058ea6fbbc0b7667d8cb694607e26497fbe88b4d
         if not data:
             return JSONResponse({"frame": None, "faces": [], "metrics": {}}, status_code=200)
         return JSONResponse(data, status_code=200)
@@ -189,29 +135,15 @@ async def live_ws(websocket: WebSocket):
     try:
         while True:
             try:
-<<<<<<< HEAD
                 data = await detection_manager.get_live_frame_json()  
                 if data:
                     await websocket.send_json(data)
-=======
-                data = detection_manager.get_live_frame_json()
-                if data:
-                    # send JSON; if send fails, break to cleanup
-                    await websocket.send_json(data)
-                # throttle; ~20 FPS send attempt
->>>>>>> 058ea6fbbc0b7667d8cb694607e26497fbe88b4d
                 await asyncio.sleep(0.05)
             except WebSocketDisconnect:
                 logger.info("Live WebSocket: client disconnected")
                 break
             except Exception as e:
-<<<<<<< HEAD
                 logger.debug("Exception inside live_ws loop (non-fatal): %s", e)
-=======
-                # If send_json fails (broken pipe) or other error, log and try to continue
-                logger.debug("Exception inside live_ws loop (non-fatal): %s", e)
-                # small delay before continuing to avoid busy-looping on persistent error
->>>>>>> 058ea6fbbc0b7667d8cb694607e26497fbe88b4d
                 await asyncio.sleep(0.2)
     except Exception:
         logger.exception("Unhandled exception in live websocket handler")
@@ -224,36 +156,18 @@ async def live_ws(websocket: WebSocket):
 
 
 
-<<<<<<< HEAD
 # WebSocket: /stream
 
 @app.websocket("/stream")
 async def stream_ws(websocket: WebSocket):
-=======
-# WebSocket: /stream 
-
-@app.websocket("/stream")
-async def stream_ws(websocket: WebSocket):
-    """
-    Assignment-required WebSocket endpoint for real-time detections.
-    Sends JSON in format: { "timestamp": "...", "faces": [{ "bbox": [...], "emotion": "...", "age": int, "gender": "..." }] }
-    """
->>>>>>> 058ea6fbbc0b7667d8cb694607e26497fbe88b4d
     await websocket.accept()
     logger.info("Client connected to /stream websocket")
     try:
         while True:
             try:
-<<<<<<< HEAD
                 data = await detection_manager.get_stream_json()      
                 if data:
                     await websocket.send_json(data)
-=======
-                data = detection_manager.get_stream_json()
-                if data:
-                    await websocket.send_json(data)
-                # Send updates at ~10 FPS
->>>>>>> 058ea6fbbc0b7667d8cb694607e26497fbe88b4d
                 await asyncio.sleep(0.1)
             except WebSocketDisconnect:
                 logger.info("Stream WebSocket: client disconnected")
@@ -281,16 +195,9 @@ async def feed_ws(websocket: WebSocket):
     try:
         while True:
             try:
-<<<<<<< HEAD
                 data = await detection_manager.get_detection_feed_json() 
                 if data:
                     await websocket.send_json(data)
-=======
-                data = detection_manager.get_detection_feed_json()
-                if data:
-                    await websocket.send_json(data)
-                # send fewer feed updates (face thumbnails) than frames
->>>>>>> 058ea6fbbc0b7667d8cb694607e26497fbe88b4d
                 await asyncio.sleep(0.2)
             except WebSocketDisconnect:
                 logger.info("Feed WebSocket: client disconnected")
@@ -309,7 +216,6 @@ async def feed_ws(websocket: WebSocket):
 
 
 
-<<<<<<< HEAD
 # Shutdown hooks
 
 @app.on_event("shutdown")
@@ -326,16 +232,6 @@ async def shutdown_event():
                 await detection_task
             except asyncio.CancelledError:
                 pass
-=======
-#  shutdown hooks
-
-@app.on_event("shutdown")
-def shutdown_event():
-    try:
-        logger.info("Shutting down: stopping detection and camera")
-        detection_manager.stop_detection()
-        detection_manager.stop_camera()
->>>>>>> 058ea6fbbc0b7667d8cb694607e26497fbe88b4d
     except Exception:
         logger.exception("Error during shutdown")
 
@@ -345,16 +241,3 @@ def shutdown_event():
 
 if __name__ == "__main__":
     uvicorn.run("server:app", host="127.0.0.1", port=8000)
-
-
-
-<<<<<<< HEAD
-
-
-
-
-
-
-
-=======
->>>>>>> 058ea6fbbc0b7667d8cb694607e26497fbe88b4d
