@@ -5,17 +5,99 @@ import logging
 from deepface import DeepFace
 import base64
 
+
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
+# GPU/CUDA/MPS Detection
+try:
+    import torch
+    TORCH_AVAILABLE = True
+    CUDA_AVAILABLE = torch.cuda.is_available()
+    # Apple Silicon / Mac GPU support 
+    MPS_AVAILABLE = hasattr(torch.backends, "mps") and torch.backends.mps.is_available()
+except ImportError:
+    TORCH_AVAILABLE = False
+    CUDA_AVAILABLE = False
+    MPS_AVAILABLE = False
+
+logger.info(f"GPU Detection: torch={TORCH_AVAILABLE}, CUDA={CUDA_AVAILABLE}, MPS={MPS_AVAILABLE}")
+
+
+class DeviceConfig:
+    """
+    GPU/CPU device configuration.
+    Automatically checks CUDA availability and selects optimal backend.
+    """
+    
+    def __init__(self):
+        # Store detection results
+        self.cuda_available = CUDA_AVAILABLE
+        self.mps_available = MPS_AVAILABLE
+        self.torch_available = TORCH_AVAILABLE
+        
+        # Select backend based on device
+        self.detector_backend = self._select_backend()
+        
+        # Log results
+        logger.info(f"Device Config: CUDA={self.cuda_available}, MPS={self.mps_available}, Torch={self.torch_available}")
+        logger.info(f"Selected backend: {self.detector_backend}")
+        logger.info(f"Rationale: {self._rationale()}")
+    
+    def _select_backend(self) -> str:
+       
+        if self.cuda_available:
+            # GPU available: prioritize accuracy + speed
+            return "retinaface"
+        
+        #Apple Silicon GPU -better performance - mtcnn better than retinaface in most cases
+        elif self.mps_available:
+            return "mtcnn"
+        else:
+            # CPU only: prioritize speed
+            return "opencv"
+    
+    def _rationale(self) -> str:
+        """
+        Explain why this backend was chosen.
+        """
+        if self.cuda_available:
+            return (
+            "CUDA detected: RetinaFace selected. "
+            "Best accuracy + speed on NVIDIA GPU (~20-40ms/frame). "
+            "3-5x faster than CPU. Accuracy and speed both achievable."
+            )
+        elif self.mps_available:
+            return (
+    
+            "MPS detected: MTCNN selected. "
+            "RetinaFace has unstable MPS support in DeepFace. "
+            "MTCNN gives better accuracy than OpenCV with stable MPS support (~40-80ms/frame). "
+            )
+    
+        else:
+            return (
+            "CPU-only: OpenCV selected. "
+            "Fastest detector on CPU (~50-100ms/frame). "
+            "Heavier backends add 2-4x latency with marginal accuracy gain."
+            )
+
 class DetectionManager:
     def __init__(self, use_local_camera=True, detection_interval=5):
+        # Initialize device config (GPU/CPU detection)
+        self.device_config = DeviceConfig()  
+        
+        # Camera
         self.camera = None
-        self.camera_url = 0 if use_local_camera else None
+        self.camera_url = 0
         self.is_active = False
-        self.stop_requested = False                    
-        self.latest_frame = None
-        self.state_lock = asyncio.Lock()               
+        
+        # Async
+        self.state_lock = asyncio.Lock()
+        self.stop_requested = False
+        
+                         
+        self.latest_frame = None             
         self.detection_interval = detection_interval
         self.frame_count = 0
 
@@ -47,6 +129,11 @@ class DetectionManager:
 
     def start_camera(self):
         self.stop_camera_sync()  # release any existing camera first
+    
+        # Reset stop flag so the loop can run again
+        self.stop_requested = False  
+        self.frame_count = 0
+        
         self.camera = cv2.VideoCapture(self.camera_url)
         if not self.camera.isOpened():
             self.is_active = False
@@ -54,13 +141,28 @@ class DetectionManager:
         self.is_active = True
         logger.info("Camera started.")
 
-    def stop_camera_sync(self):
-        """Synchronous camera release (used internally)"""
+    async def stop_camera_sync(self):
+        # Signal the loop to stop
+        self.stop_requested = True
+        
+        # Wait for the loop to finish its current iteration
+        await asyncio.sleep(0.2)
+        
+        # Release camera
         if self.camera:
             self.camera.release()
             self.camera = None
+        
         self.is_active = False
-
+        self.frame_count = 0  # ← reset so detection_interval works fresh on restart
+        
+        cv2.destroyAllWindows()
+        
+        async with self.state_lock:
+            self.unique_detections = []
+            self.detection_signatures = set()
+        
+        logger.info("Camera stopped.")
 
     # -------------------------------------------------------------------------
     # START / STOP DETECTION
@@ -227,7 +329,7 @@ class DetectionManager:
                 rgb_small,
                 actions=["age", "gender", "emotion"],
                 enforce_detection=False,
-                detector_backend="opencv",
+                detector_backend=self.device_config.detector_backend,
             )
 
             if not isinstance(results, list):

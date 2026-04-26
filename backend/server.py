@@ -62,22 +62,47 @@ async def set_camera(source_type: str = Body(...), camera_url: str = Body(None))
         logger.exception("Error setting camera")
         raise HTTPException(status_code=400, detail=str(e))
 
-
 @app.post("/detection/start")
 async def start_detection():
+    global detection_task
     try:
-        await detection_manager.start_detection()   
+        if detection_task and not detection_task.done():
+            detection_task.cancel()
+            try:
+                await detection_task
+            except asyncio.CancelledError:
+                pass
+
+        await detection_manager.start_detection()
+        detection_task = asyncio.create_task(
+            detection_manager.run_detection_loop()
+        )
         return {"status": "success", "message": "Detection started"}
     except Exception as e:
         logger.exception("Error starting detection")
         raise HTTPException(status_code=500, detail=str(e))
-
+    
+# @app.post("/detection/start")
+# async def start_detection():
+#     try:
+#         await detection_manager.start_detection()   
+#         return {"status": "success", "message": "Detection started"}
+#     except Exception as e:
+#         logger.exception("Error starting detection")
+#         raise HTTPException(status_code=500, detail=str(e))
 
 @app.post("/detection/stop")
 async def stop_detection():
+    global detection_task
     try:
-        await detection_manager.stop_detection()      
-        await detection_manager.stop_camera()         
+        await detection_manager.stop_camera()  # this is enough
+        if detection_task and not detection_task.done():
+            detection_task.cancel()
+            try:
+                await detection_task
+            except asyncio.CancelledError:
+                pass
+            detection_task = None
         return {"status": "success", "message": "Detection stopped"}
     except Exception as e:
         logger.exception("Error stopping detection")
@@ -215,17 +240,13 @@ async def feed_ws(websocket: WebSocket):
         logger.info("Feed websocket connection closed")
 
 
-
-# Shutdown hooks
-
 @app.on_event("shutdown")
-async def shutdown_event():                              
+async def shutdown_event():
     global detection_task
     try:
         logger.info("Shutting down: stopping detection and camera")
         if detection_manager:
-            await detection_manager.stop_detection()      
-            await detection_manager.stop_camera()         
+            await detection_manager.stop_camera()  
         if detection_task and not detection_task.done():
             detection_task.cancel()
             try:
@@ -235,9 +256,7 @@ async def shutdown_event():
     except Exception:
         logger.exception("Error during shutdown")
 
-
-
 # Run with uvicorn
 
 if __name__ == "__main__":
-    uvicorn.run("server:app", host="127.0.0.1", port=8000)
+    uvicorn.run("server:app", host="127.0.0.1", port=8000, log_level="info")

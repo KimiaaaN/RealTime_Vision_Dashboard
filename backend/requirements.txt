@@ -13,4 +13,6 @@ tf-keras==2.20.1
 keras==3.12.0
 retina-face==0.0.17
 tqdm==4.67.1
+torch>=2.0.0
+torchvision
 
