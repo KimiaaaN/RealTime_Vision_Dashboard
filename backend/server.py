@@ -82,14 +82,6 @@ async def start_detection():
         logger.exception("Error starting detection")
         raise HTTPException(status_code=500, detail=str(e))
     
-# @app.post("/detection/start")
-# async def start_detection():
-#     try:
-#         await detection_manager.start_detection()   
-#         return {"status": "success", "message": "Detection started"}
-#     except Exception as e:
-#         logger.exception("Error starting detection")
-#         raise HTTPException(status_code=500, detail=str(e))
 
 @app.post("/detection/stop")
 async def stop_detection():

@@ -12,7 +12,7 @@ emotion charts, and system metrics.
 RealTime_Vision_Dashboard/
 ├── backend/
 │   ├── server.py                  # FastAPI routes (no business logic)
-│   ├── detection.py               # Backwards-compat shim
+│   ├── detection.py               # Detection API interface
 │   ├── models/
 │   │   └── schemas.py             # Pydantic schemas: BBox, Face, FaceWithImage, DetectionMetrics
 │   ├── config/
@@ -21,7 +21,7 @@ RealTime_Vision_Dashboard/
 │   │   ├── camera.py              # CameraService — camera I/O only
 │   │   ├── analysis.py            # AnalysisService — DeepFace inference only
 │   │   ├── metrics.py             # MetricsService — FPS/latency/counts only
-│   │   └── detection_manager.py   # Thin orchestrator (~150 lines)
+│   │   └── detection_manager.py   # Detection pipeline orchestrator
 │   └── requirements.txt
 ├── frontend/
 │   ├── src/
@@ -153,11 +153,9 @@ Each layer has one responsibility:
 | Service | `services/camera.py` | Camera I/O only |
 | Service | `services/analysis.py` | DeepFace inference only |
 | Service | `services/metrics.py` | FPS / latency / counts only |
-| Orchestrator | `services/detection_manager.py` | Wires services, manages state lock |
+| Orchestrator | `services/detection_manager.py` | Wires services, Detection pipeline orchestrator |
+| Detection API Layer | `detection.py` |  Detection API interface |
 | Routes | `server.py` | HTTP / WebSocket handlers only |
-
-The original `DetectionManager` was a 400-line class handling 6+ concerns.
-`detection_manager.py` is ~150 lines and owns zero domain logic itself.
 
 ---
 
@@ -253,15 +251,14 @@ emotion and identity in the detection card feed.
 Separation prevents bandwidth overload and keeps FPS stable.
 
 **Environment-configurable tunables**
-All magic numbers live in `config/settings.py` and can be overridden
-via environment variables — no code changes needed between environments:
+All hardcoded configuration values are defined in  `config/settings.py` and can be overridden via environment variables—no code changes are needed between environments:
 ```bash
 DETECTION_INTERVAL=3 ANALYSIS_TARGET_WIDTH=480 uvicorn server:app
 ```
 
 ---
 
-## Assignment Requirements Checklist
+## Project Requirement Checklist
 
 ### A. Vision Service (Python + FastAPI)
 - ✅ Captures video input (webcam)
